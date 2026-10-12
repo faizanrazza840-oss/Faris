@@ -1,188 +1,227 @@
+
 package com.faris.assistant
 
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import androidx.compose.animation.core.FastOutSlowInEasing
-import androidx.compose.animation.core.RepeatMode
-import androidx.compose.animation.core.animateFloat
-import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.rememberInfiniteTransition
-import androidx.compose.animation.core.tween
-import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.material3.Button
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.OkHttpClient
+import okhttp3.Request
+import okhttp3.RequestBody.Companion.toRequestBody
+import org.json.JSONObject
+import java.util.concurrent.TimeUnit
 
-private val DeepBackground = Color(0xFF030812)
-private val Cyan = Color(0xFF53E7FF)
-private val Blue = Color(0xFF397BFF)
+private const val FARIS_URL =
+    "https://broad-art-b578faris-ai-bridge.faizanrazza840.workers.dev"
 
-private enum class AssistantState { IDLE, LISTENING, THINKING, SPEAKING }
+private val FarisBackground = Color(0xFF080D1B)
+private val FarisCyan = Color(0xFF53E7FF)
+private val FarisClient = OkHttpClient.Builder()
+    .connectTimeout(20, TimeUnit.SECONDS)
+    .readTimeout(60, TimeUnit.SECONDS)
+    .build()
+
+private data class ChatMessage(
+    val text: String,
+    val fromUser: Boolean
+)
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
             MaterialTheme {
-                FARISHome()
+                FarisChat()
             }
         }
     }
 }
 
 @Composable
-private fun FARISHome() {
-    var expanded by remember { mutableStateOf(false) }
-    var state by remember { mutableStateOf(AssistantState.IDLE) }
-
-    Surface(
-        modifier = Modifier.fillMaxSize(),
-        color = DeepBackground
-    ) {
-        Box(Modifier.fillMaxSize()) {
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(24.dp),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.SpaceBetween
-            ) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text("F A R I S", color = Cyan, fontSize = 25.sp, fontWeight = FontWeight.Light)
-                    Text("PERSONAL AI SYSTEM", color = Color.LightGray, fontSize = 10.sp, letterSpacing = 3.sp)
-                }
-
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    HolographicOrb(
-                        modifier = Modifier
-                            .size(if (expanded) 270.dp else 190.dp)
-                            .clickable { expanded = !expanded },
-                        active = state != AssistantState.IDLE
-                    )
-                    Spacer(Modifier.height(24.dp))
-                    Text(
-                        when (state) {
-                            AssistantState.IDLE -> "READY"
-                            AssistantState.LISTENING -> "LISTENING"
-                            AssistantState.THINKING -> "THINKING"
-                            AssistantState.SPEAKING -> "SPEAKING"
-                        },
-                        color = Cyan,
-                        letterSpacing = 4.sp,
-                        fontSize = 13.sp
-                    )
-                    Spacer(Modifier.height(8.dp))
-                    Text(
-                        if (expanded) "Hologram interface preview" else "Tap the core to expand",
-                        color = Color(0xFF9CAFC7),
-                        fontSize = 13.sp
-                    )
-                }
-
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        StateButton("Listen") { state = AssistantState.LISTENING }
-                        StateButton("Think") { state = AssistantState.THINKING }
-                        StateButton("Speak") { state = AssistantState.SPEAKING }
-                    }
-                    Spacer(Modifier.height(10.dp))
-                    Button(onClick = {
-                        state = AssistantState.IDLE
-                        expanded = false
-                    }) { Text("Stop / Close") }
-                    Spacer(Modifier.height(8.dp))
-                    Text(
-                        "UI prototype only • microphone and AI are not connected",
-                        color = Color(0xFF6E8199),
-                        fontSize = 10.sp
-                    )
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun StateButton(label: String, onClick: () -> Unit) {
-    Button(onClick = onClick) { Text(label) }
-}
-
-@Composable
-private fun HolographicOrb(modifier: Modifier = Modifier, active: Boolean) {
-    val transition = rememberInfiniteTransition(label = "orb")
-    val pulse by transition.animateFloat(
-        initialValue = 0.94f,
-        targetValue = if (active) 1.08f else 1.02f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(1600, easing = FastOutSlowInEasing),
-            repeatMode = RepeatMode.Reverse
-        ),
-        label = "pulse"
-    )
-
-    Canvas(modifier = modifier) {
-        val c = Offset(size.width / 2f, size.height / 2f)
-        val base = size.minDimension * 0.32f * pulse
-        drawCircle(
-            brush = Brush.radialGradient(
-                colors = listOf(Color(0xFFBDFBFF), Cyan, Blue, Color(0x00397BFF)),
-                center = c,
-                radius = base * 1.7f
-            ),
-            radius = base * 1.7f,
-            center = c,
-            alpha = 0.9f
-        )
-        for (i in 0..4) {
-            val radius = base * (0.78f + i * 0.22f)
-            drawCircle(
-                color = if (i % 2 == 0) Cyan else Blue,
-                radius = radius,
-                center = c,
-                style = androidx.compose.ui.graphics.drawscope.Stroke(
-                    width = if (i == 0) 2.5f else 1.1f
-                ),
-                alpha = 0.72f - i * 0.09f
+private fun FarisChat() {
+    var message by remember { mutableStateOf("") }
+    var loading by remember { mutableStateOf(false) }
+    val messages = remember {
+        mutableStateListOf(
+            ChatMessage(
+                "Hello! Main FARIS hoon. Mujhe message bhejo.",
+                false
             )
-        }
-        drawCircle(
-            brush = Brush.radialGradient(
-                colors = listOf(Color.White, Cyan, Color(0xFF1266FF)),
-                center = c,
-                radius = base * 0.75f
-            ),
-            radius = base * 0.65f,
-            center = c
         )
-        // Small orbit points for a lightweight holographic feel.
-        val orbit = base * 1.35f
-        drawCircle(Cyan, radius = 3.5f, center = Offset(c.x + orbit, c.y - orbit * 0.28f))
-        drawCircle(Color.White, radius = 2.5f, center = Offset(c.x - orbit * 0.72f, c.y + orbit * 0.72f))
-        drawCircle(Blue, radius = 3f, center = Offset(c.x - orbit * 0.92f, c.y - orbit * 0.1f))
+    }
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(FarisBackground)
+            .statusBarsPadding()
+            .navigationBarsPadding()
+            .padding(16.dp)
+    ) {
+        Text(
+            "F A R I S",
+            color = FarisCyan,
+            fontSize = 28.sp
+        )
+        Text(
+            "PERSONAL AI ASSISTANT",
+            color = Color.LightGray,
+            fontSize = 11.sp
+        )
+
+        Spacer(Modifier.height(16.dp))
+
+        LazyColumn(
+            modifier = Modifier.weight(1f).fillMaxWidth(),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            items(messages) { item ->
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = if (item.fromUser)
+                        Arrangement.End else Arrangement.Start
+                ) {
+                    Surface(
+                        color = if (item.fromUser)
+                            Color(0xFF123A52)
+                        else Color(0xFF182238),
+                        shape = RoundedCornerShape(16.dp)
+                    ) {
+                        Text(
+                            item.text,
+                            color = Color.White,
+                            modifier = Modifier
+                                .widthIn(max = 290.dp)
+                                .padding(12.dp)
+                        )
+                    }
+                }
+            }
+
+            if (loading) {
+                item {
+                    Text(
+                        "FARIS soch raha hai...",
+                        color = FarisCyan
+                    )
+                }
+            }
+        }
+
+        Spacer(Modifier.height(12.dp))
+
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            OutlinedTextField(
+                value = message,
+                onValueChange = { message = it },
+                modifier = Modifier.weight(1f),
+                enabled = !loading,
+                placeholder = { Text("Message likho...") },
+                singleLine = false,
+                maxLines = 3,
+                keyboardOptions = KeyboardOptions(
+                    imeAction = ImeAction.Send
+                ),
+                keyboardActions = KeyboardActions(
+                    onSend = {
+                        // Send button use karo.
+                    }
+                ),
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedTextColor = Color.White,
+                    unfocusedTextColor = Color.White,
+                    focusedBorderColor = FarisCyan,
+                    unfocusedBorderColor = Color.Gray,
+                    focusedPlaceholderColor = Color.LightGray,
+                    unfocusedPlaceholderColor = Color.LightGray
+                )
+            )
+
+            Button(
+                enabled = message.isNotBlank() && !loading,
+                onClick = {
+                    val question = message.trim()
+                    message = ""
+                    messages.add(ChatMessage(question, true))
+                    loading = true
+
+                    Thread {
+                        val answer = try {
+                            val json = JSONObject()
+                                .put("message", question)
+
+                            val body = json.toString().toRequestBody(
+                                "application/json; charset=utf-8"
+                                    .toMediaType()
+                            )
+
+                            val request = Request.Builder()
+                                .url(FARIS_URL)
+                                .post(body)
+                                .build()
+
+                            FarisClient.newCall(request).execute().use {
+                                response ->
+                                val text = response.body?.string().orEmpty()
+                                val data = try {
+                                    JSONObject(text)
+                                } catch (_: Exception) {
+                                    JSONObject()
+                                }
+
+                                if (response.isSuccessful) {
+                                    data.optString(
+                                        "reply",
+                                        "AI se khaali jawab mila."
+                                    )
+                                } else {
+                                    "AI error (${response.code}): " +
+                                        data.optString(
+                                            "error",
+                                            "Worker ya AI service check karo."
+                                        )
+                                }
+                            }
+                        } catch (e: Exception) {
+                            "Connection error: ${e.localizedMessage ?: "Internet check karo"}"
+                        }
+
+                        (android.os.Looper.getMainLooper()).let { looper ->
+                            android.os.Handler(looper).post {
+                                messages.add(ChatMessage(answer, false))
+                                loading = false
+                            }
+                        }
+                    }.start()
+                }
+            ) {
+                Text("Send")
+            }
+        }
+
+        Spacer(Modifier.height(8.dp))
+        Text(
+            "Internet aur AI service zaroori hain.",
+            color = Color.Gray,
+            fontSize = 11.sp
+        )
     }
 }
